@@ -778,9 +778,6 @@ function getSelectedOrdersData() {
 async function showBulkChangeEstado() {
     const count = selectedOrders.size;
     
-    // Wait for DOM and Bootstrap to be fully ready
-    await new Promise(resolve => setTimeout(resolve, 500));
-    
     const modalElem = document.getElementById('bulkChangeEstadoModal');
     
     if (!modalElem) {
@@ -842,6 +839,49 @@ async function showBulkChangeEstado() {
     }
 }
 
+function updateOrderRowState(ofId, estadoInfo) {
+    const row = document.querySelector(`tr[data-of-id="${ofId}"]`);
+    if (!row) return;
+    
+    const estadoCell = row.querySelector('td:nth-child(5)');
+    if (estadoCell) {
+        estadoCell.innerHTML = `
+            <div>
+                <span class="badge" style="background-color: ${estadoInfo.area_color}">
+                    ${estadoInfo.area_nombre}
+                </span>
+            </div>
+            <small class="text-muted">${estadoInfo.estado_nombre}</small>
+        `;
+    }
+}
+
+function removeOrderRows(ofIds) {
+    ofIds.forEach(ofId => {
+        const row = document.querySelector(`tr[data-of-id="${ofId}"]`);
+        if (row) {
+            row.remove();
+        }
+    });
+    
+    const tbody = document.querySelector('table tbody');
+    if (tbody && tbody.querySelectorAll('tr').length === 0) {
+        const tableContainer = tbody.closest('.table-responsive');
+        if (tableContainer) {
+            tableContainer.innerHTML = `
+                <div class="text-center py-5">
+                    <i data-feather="tool" class="text-muted mb-3" style="width: 64px; height: 64px;"></i>
+                    <h5 class="text-muted">No quedan órdenes de fabricación</h5>
+                    <p class="text-muted">Todas las órdenes han sido procesadas.</p>
+                </div>
+            `;
+            if (typeof feather !== 'undefined') {
+                feather.replace();
+            }
+        }
+    }
+}
+
 async function executeBulkChangeEstado() {
     const estadoId = document.getElementById('bulk-estado-select').value;
     const notas = document.getElementById('bulk-notas').value;
@@ -867,11 +907,26 @@ async function executeBulkChangeEstado() {
         const result = await response.json();
         
         if (result.success) {
+            const successCount = result.results.success_count || 0;
+            const errorCount = result.results.error_count || 0;
+            
+            if (result.results.successes) {
+                result.results.successes.forEach(success => {
+                    updateOrderRowState(success.of_id, success.estado_info);
+                });
+            }
+            
             bootstrap.Modal.getInstance(document.getElementById('bulkChangeEstadoModal')).hide();
             clearSelection();
-            window.location.reload();
+            
+            if (errorCount > 0) {
+                const errorDetails = result.results.errors.map(e => `OF ${e.of_id}: ${e.error}`).join('\n');
+                alert(`Operación completada parcialmente:\n✓ ${successCount} exitosas\n✗ ${errorCount} con errores\n\nErrores:\n${errorDetails}`);
+            } else if (successCount > 0) {
+                alert(`✓ ${successCount} orden${successCount > 1 ? 'es' : ''} actualizada${successCount > 1 ? 's' : ''} correctamente`);
+            }
         } else {
-            alert('Error: ' + result.error);
+            alert('Error: ' + (result.error || 'Error desconocido'));
         }
     } catch (error) {
         console.error('Error:', error);
@@ -881,9 +936,6 @@ async function executeBulkChangeEstado() {
 
 async function showBulkArchive() {
     const count = selectedOrders.size;
-    
-    // Wait for DOM and Bootstrap to be fully ready
-    await new Promise(resolve => setTimeout(resolve, 500));
     
     const modalElem = document.getElementById('bulkArchiveModal');
     
@@ -931,9 +983,22 @@ async function executeBulkArchive() {
         const result = await response.json();
         
         if (result.success) {
+            const successCount = result.results.success_count || 0;
+            const errorCount = result.results.error_count || 0;
+            
+            if (result.results.processed_ids) {
+                removeOrderRows(result.results.processed_ids);
+            }
+            
             bootstrap.Modal.getInstance(document.getElementById('bulkArchiveModal')).hide();
             clearSelection();
-            window.location.reload();
+            
+            if (errorCount > 0) {
+                const errorDetails = result.results.errors.map(e => `OF ${e.of_id}: ${e.error}`).join('\n');
+                alert(`Operación completada parcialmente:\n✓ ${successCount} archivadas\n✗ ${errorCount} con errores\n\nErrores:\n${errorDetails}`);
+            } else if (successCount > 0) {
+                alert(`✓ ${successCount} orden${successCount > 1 ? 'es' : ''} archivada${successCount > 1 ? 's' : ''} correctamente`);
+            }
         } else {
             alert('Error: ' + result.error);
         }
@@ -945,9 +1010,6 @@ async function executeBulkArchive() {
 
 async function showBulkDelete() {
     const count = selectedOrders.size;
-    
-    // Wait for DOM and Bootstrap to be fully ready
-    await new Promise(resolve => setTimeout(resolve, 500));
     
     const modalElem = document.getElementById('bulkDeleteModal');
     
@@ -1006,9 +1068,22 @@ async function executeBulkDelete() {
         const result = await response.json();
         
         if (result.success) {
+            const successCount = result.results.success_count || 0;
+            const errorCount = result.results.error_count || 0;
+            
+            if (result.results.processed_ids) {
+                removeOrderRows(result.results.processed_ids);
+            }
+            
             bootstrap.Modal.getInstance(document.getElementById('bulkDeleteModal')).hide();
             clearSelection();
-            window.location.reload();
+            
+            if (errorCount > 0) {
+                const errorDetails = result.results.errors.map(e => `OF ${e.of_id}: ${e.error}`).join('\n');
+                alert(`Operación completada parcialmente:\n✓ ${successCount} eliminadas\n✗ ${errorCount} con errores\n\nErrores:\n${errorDetails}`);
+            } else if (successCount > 0) {
+                alert(`✓ ${successCount} orden${successCount > 1 ? 'es' : ''} eliminada${successCount > 1 ? 's' : ''} correctamente`);
+            }
         } else {
             alert('Error: ' + result.error);
         }

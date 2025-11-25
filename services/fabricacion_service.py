@@ -754,18 +754,18 @@ class FabricacionService:
             created_by: User ID performing the action
             
         Returns:
-            Dict with success count, errors, and processed IDs
+            Dict with success count, errors, and per-OF results with estado info
         """
         results = {
             'success_count': 0,
             'error_count': 0,
             'errors': [],
-            'processed_ids': []
+            'successes': []
         }
         
-        # Get the area_id from the estado
-        from models import AreaEstado
-        area_estado = db.session.query(AreaEstado).filter_by(id=nuevo_estado_id).first()
+        # Get the area_id and estado info from the estado
+        from models import AreaEstado, Area
+        area_estado = db.session.query(AreaEstado).join(Area).filter(AreaEstado.id == nuevo_estado_id).first()
         if not area_estado:
             logger.error(f"Estado {nuevo_estado_id} no encontrado")
             results['error_count'] = len(of_ids)
@@ -777,6 +777,13 @@ class FabricacionService:
             return results
         
         area_id = area_estado.area_id
+        
+        # Prepare estado info that will be reused for all successes
+        estado_info = {
+            'area_nombre': area_estado.area.nombre,
+            'area_color': area_estado.area.color_hex,
+            'estado_nombre': area_estado.nombre
+        }
         
         for of_id in of_ids:
             try:
@@ -790,7 +797,10 @@ class FabricacionService:
                     notas=notas or "Cambio masivo de estado"
                 )
                 results['success_count'] += 1
-                results['processed_ids'].append(of_id)
+                results['successes'].append({
+                    'of_id': of_id,
+                    'estado_info': estado_info
+                })
                 logger.info(f"Estado cambiado para OF {of_id}")
             except Exception as e:
                 db.session.rollback()
