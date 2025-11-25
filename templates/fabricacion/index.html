@@ -785,58 +785,65 @@ async function showBulkChangeEstado() {
         return;
     }
     
-    // Query elements within the modal to ensure they exist
-    const countElem = modalElem.querySelector('#bulk-change-count');
-    const ordersElem = modalElem.querySelector('#bulk-selected-orders');
-    const selectElem = modalElem.querySelector('#bulk-estado-select');
-    const notasElem = modalElem.querySelector('#bulk-notas');
-    
-    if (!countElem || !ordersElem || !selectElem || !notasElem) {
-        console.error('Bulk change estado modal elements not found');
-        return;
-    }
-    
-    // Reset modal content
-    countElem.textContent = count;
-    selectElem.innerHTML = '<option value="">Cargando estados...</option>';
-    notasElem.value = '';
-    
-    const ordersHtml = getSelectedOrdersData().map(of => 
-        `<div class="badge bg-primary me-1 mb-1">${of.codigo}</div>`
-    ).join('');
-    ordersElem.innerHTML = ordersHtml;
-    
     // Show modal first
     const existingModal = bootstrap.Modal.getInstance(modalElem);
     if (existingModal) {
         existingModal.dispose();
     }
     const modal = new bootstrap.Modal(modalElem);
-    modal.show();
     
-    // Load estados
-    try {
-        const response = await fetch('/fabricacion/api/estados-disponibles');
-        if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
-        }
-        const estados = await response.json();
+    // Wait for modal to be fully shown before accessing elements
+    modalElem.addEventListener('shown.bs.modal', async function onModalShown() {
+        // Remove event listener to avoid duplicate calls
+        modalElem.removeEventListener('shown.bs.modal', onModalShown);
         
-        if (estados.error) {
-            throw new Error(estados.error);
+        // Query elements within the modal after it's shown
+        const countElem = modalElem.querySelector('#bulk-change-count');
+        const ordersElem = modalElem.querySelector('#bulk-selected-orders');
+        const selectElem = modalElem.querySelector('#bulk-estado-select');
+        const notasElem = modalElem.querySelector('#bulk-notas');
+        
+        if (!countElem || !ordersElem || !selectElem || !notasElem) {
+            console.error('Bulk change estado modal elements not found');
+            return;
         }
         
-        selectElem.innerHTML = '<option value="">Seleccione un estado...</option>';
-        estados.forEach(estado => {
-            const option = document.createElement('option');
-            option.value = estado.id;
-            option.textContent = `${estado.area} - ${estado.nombre}`;
-            selectElem.appendChild(option);
-        });
-    } catch (error) {
-        console.error('Error cargando estados:', error);
-        selectElem.innerHTML = '<option value="">Error al cargar estados</option>';
-    }
+        // Reset modal content
+        countElem.textContent = count;
+        selectElem.innerHTML = '<option value="">Cargando estados...</option>';
+        notasElem.value = '';
+        
+        const ordersHtml = getSelectedOrdersData().map(of => 
+            `<div class="badge bg-primary me-1 mb-1">${of.codigo}</div>`
+        ).join('');
+        ordersElem.innerHTML = ordersHtml;
+        
+        // Load estados
+        try {
+            const response = await fetch('/fabricacion/api/estados-disponibles');
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            const estados = await response.json();
+            
+            if (estados.error) {
+                throw new Error(estados.error);
+            }
+            
+            selectElem.innerHTML = '<option value="">Seleccione un estado...</option>';
+            estados.forEach(estado => {
+                const option = document.createElement('option');
+                option.value = estado.id;
+                option.textContent = `${estado.area} - ${estado.nombre}`;
+                selectElem.appendChild(option);
+            });
+        } catch (error) {
+            console.error('Error cargando estados:', error);
+            selectElem.innerHTML = '<option value="">Error al cargar estados</option>';
+        }
+    });
+    
+    modal.show();
 }
 
 function updateOrderRowState(ofId, estadoInfo) {
@@ -944,22 +951,6 @@ async function showBulkArchive() {
         return;
     }
     
-    // Query elements within the modal
-    const countElem = modalElem.querySelector('#bulk-archive-count');
-    const ordersElem = modalElem.querySelector('#bulk-archive-orders');
-    
-    if (!countElem || !ordersElem) {
-        console.error('Bulk archive modal elements not found');
-        return;
-    }
-    
-    countElem.textContent = count;
-    
-    const ordersHtml = getSelectedOrdersData().map(of => 
-        `<div class="badge bg-warning me-1 mb-1">${of.codigo}</div>`
-    ).join('');
-    ordersElem.innerHTML = ordersHtml;
-    
     // Dispose existing modal instance if any
     const existingModal = bootstrap.Modal.getInstance(modalElem);
     if (existingModal) {
@@ -967,6 +958,27 @@ async function showBulkArchive() {
     }
     
     const modal = new bootstrap.Modal(modalElem);
+    
+    // Wait for modal to be fully shown before accessing elements
+    modalElem.addEventListener('shown.bs.modal', function onModalShown() {
+        modalElem.removeEventListener('shown.bs.modal', onModalShown);
+        
+        const countElem = modalElem.querySelector('#bulk-archive-count');
+        const ordersElem = modalElem.querySelector('#bulk-archive-orders');
+        
+        if (!countElem || !ordersElem) {
+            console.error('Bulk archive modal elements not found');
+            return;
+        }
+        
+        countElem.textContent = count;
+        
+        const ordersHtml = getSelectedOrdersData().map(of => 
+            `<div class="badge bg-warning me-1 mb-1">${of.codigo}</div>`
+        ).join('');
+        ordersElem.innerHTML = ordersHtml;
+    });
+    
     modal.show();
 }
 
@@ -1018,27 +1030,6 @@ async function showBulkDelete() {
         return;
     }
     
-    // Query elements within the modal
-    const countElem = modalElem.querySelector('#bulk-delete-count');
-    const ordersElem = modalElem.querySelector('#bulk-delete-orders');
-    const confirmElem = modalElem.querySelector('#bulk-delete-confirmation');
-    const btnElem = modalElem.querySelector('#bulk-delete-btn');
-    
-    if (!countElem || !ordersElem || !confirmElem || !btnElem) {
-        console.error('Bulk delete modal elements not found');
-        return;
-    }
-    
-    countElem.textContent = count;
-    
-    const ordersHtml = getSelectedOrdersData().map(of => 
-        `<div class="badge bg-danger me-1 mb-1">${of.codigo}</div>`
-    ).join('');
-    ordersElem.innerHTML = ordersHtml;
-    
-    confirmElem.value = '';
-    btnElem.disabled = true;
-    
     // Dispose existing modal instance if any
     const existingModal = bootstrap.Modal.getInstance(modalElem);
     if (existingModal) {
@@ -1046,6 +1037,36 @@ async function showBulkDelete() {
     }
     
     const modal = new bootstrap.Modal(modalElem);
+    
+    // Wait for modal to be fully shown before accessing elements
+    modalElem.addEventListener('shown.bs.modal', function onModalShown() {
+        modalElem.removeEventListener('shown.bs.modal', onModalShown);
+        
+        const countElem = modalElem.querySelector('#bulk-delete-count');
+        const ordersElem = modalElem.querySelector('#bulk-delete-orders');
+        const confirmElem = modalElem.querySelector('#bulk-delete-confirmation');
+        const btnElem = modalElem.querySelector('#bulk-delete-btn');
+        
+        if (!countElem || !ordersElem || !confirmElem || !btnElem) {
+            console.error('Bulk delete modal elements not found');
+            return;
+        }
+        
+        countElem.textContent = count;
+        
+        const ordersHtml = getSelectedOrdersData().map(of => 
+            `<div class="badge bg-danger me-1 mb-1">${of.codigo}</div>`
+        ).join('');
+        ordersElem.innerHTML = ordersHtml;
+        
+        confirmElem.value = '';
+        btnElem.disabled = true;
+        
+        confirmElem.addEventListener('input', function checkConfirmation() {
+            btnElem.disabled = confirmElem.value.trim().toUpperCase() !== 'ELIMINAR';
+        });
+    });
+    
     modal.show();
 }
 
