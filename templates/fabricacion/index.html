@@ -162,7 +162,13 @@
                                 </td>
                                 <td colspan="7">
                                     <div class="d-flex align-items-center">
-                                        <i data-feather="folder" class="me-2"></i>
+                                        <button class="btn btn-sm btn-link project-toggle-btn p-0 me-2" 
+                                                data-bs-toggle="collapse" 
+                                                data-bs-target="#project-ofs-{{ group.proyecto.id }}" 
+                                                aria-expanded="false" 
+                                                aria-controls="project-ofs-{{ group.proyecto.id }}">
+                                            <i data-feather="chevron-right" id="toggle-icon-{{ group.proyecto.id }}"></i>
+                                        </button>
                                         <strong>{{ group.proyecto.nombre }}</strong>
                                         <span class="badge bg-primary ms-2">{{ group.ofs|length }} OF{{ 's' if group.ofs|length != 1 else '' }}</span>
                                         <small class="text-muted ms-3">{{ group.cliente.nombre }}</small>
@@ -170,116 +176,124 @@
                                 </td>
                             </tr>
                             <!-- OFs of this project -->
-                            {% for of in group.ofs %}
-                            <tr data-of-id="{{ of.id }}" data-of-codigo="{{ of.codigo }}" data-proyecto-id="{{ group.proyecto.id }}">
-                                <td>
-                                    <input type="checkbox" class="form-check-input order-checkbox" value="{{ of.id }}" data-codigo="{{ of.codigo }}" data-proyecto-id="{{ group.proyecto.id }}">
-                                </td>
-                                <td>
-                                    <div class="fw-medium">{{ of.codigo }}</div>
-                                    {% if of.contrato %}
-                                    <small class="text-muted">OC: {{ of.contrato.numero_oc }}</small>
-                                    {% endif %}
-                                </td>
-                                <td>
-                                    <a href="{{ url_for('proyectos.detalle', proyecto_id=of.proyecto.id) }}" class="text-decoration-none">
-                                        {{ of.proyecto.nombre }}
-                                    </a>
-                                    <br><small class="text-muted">{{ of.proyecto.cliente.nombre }}</small>
-                                </td>
-                                <td>
-                                    {% if of.glosa %}
-                                    <div class="text-info mb-1"><strong>Glosa:</strong> {{ of.glosa[:40] }}{% if of.glosa|length > 40 %}...{% endif %}</div>
-                                    {% endif %}
-                                    {% if of.cantidad_tableros %}
-                                    <div class="text-success"><strong>Tableros:</strong> {{ of.cantidad_tableros }}</div>
-                                    {% else %}
-                                    <small class="text-muted">-</small>
-                                    {% endif %}
-                                </td>
-                                <td>
-                                    {% if of.area_actual and of.estado_actual %}
-                                        <div>
-                                            <span class="badge" style="background-color: {{ of.area_actual.color_hex }}">
-                                                {{ of.area_actual.nombre }}
-                                            </span>
-                                        </div>
-                                        <small class="text-muted">{{ of.estado_actual.nombre }}</small>
-                                    {% else %}
-                                        <span class="badge bg-secondary">Sin estado</span>
-                                    {% endif %}
-                                </td>
-                                <td>
-                                    {% if of.fecha_entrega_dinamica %}
-                                        {{ of.fecha_entrega_dinamica.strftime('%d/%m/%Y') }}
-                                        {% if of.area_actual %}
-                                        <br><small class="text-muted">
-                                            {% if of.area_actual.tipo.value == 'fabrica' %}
-                                            Fábrica
-                                            {% elif of.area_actual.tipo.value == 'embalaje' %}
-                                            Embalaje
-                                            {% else %}
-                                            Contrato
-                                            {% endif %}
-                                        </small>
-                                        {% endif %}
-                                    {% else %}
-                                        -
-                                    {% endif %}
-                                </td>
-                                <td>
-                                    {% if of.days_remaining_dynamic is not none %}
-                                        {% if of.days_remaining_dynamic < 0 %}
-                                            <span class="badge bg-danger">{{ of.days_remaining_dynamic|abs }} días vencido</span>
-                                        {% elif of.days_remaining_dynamic == 0 %}
-                                            <span class="badge bg-warning">Hoy</span>
-                                        {% elif of.days_remaining_dynamic <= 7 %}
-                                            <span class="badge bg-warning">{{ of.days_remaining_dynamic }} días</span>
-                                        {% elif of.days_remaining_dynamic <= 30 %}
-                                            <span class="badge bg-info">{{ of.days_remaining_dynamic }} días</span>
-                                        {% else %}
-                                            <span class="badge bg-secondary">{{ of.days_remaining_dynamic }} días</span>
-                                        {% endif %}
-                                    {% else %}
-                                        -
-                                    {% endif %}
-                                </td>
-                                <td>
-                                    <div class="btn-group btn-group-sm" role="group">
-                                        <a href="{{ url_for('fabricacion.detalle', of_id=of.id) }}" 
-                                           class="btn btn-outline-primary" title="Ver detalles">
-                                            <i data-feather="eye"></i>
-                                        </a>
-                                        {% if current_user.rol.value in ['admin', 'general', 'operaciones', 'produccion'] %}
-                                        <a href="{{ url_for('fabricacion.editar', of_id=of.id) }}" 
-                                           class="btn btn-outline-secondary" title="Editar">
-                                            <i data-feather="edit"></i>
-                                        </a>
-                                        {% endif %}
+                            <tr id="project-ofs-{{ group.proyecto.id }}" class="collapse">
+                                <td colspan="8" class="p-0">
+                                    <table class="table table-sm mb-0">
+                                        <tbody>
+                                            {% for of in group.ofs %}
+                                            <tr data-of-id="{{ of.id }}" data-of-codigo="{{ of.codigo }}" data-proyecto-id="{{ group.proyecto.id }}">
+                                                <td width="40">
+                                                    <input type="checkbox" class="form-check-input order-checkbox" value="{{ of.id }}" data-codigo="{{ of.codigo }}" data-proyecto-id="{{ group.proyecto.id }}">
+                                                </td>
+                                                <td>
+                                                    <div class="fw-medium">{{ of.codigo }}</div>
+                                                    {% if of.contrato %}
+                                                    <small class="text-muted">OC: {{ of.contrato.numero_oc }}</small>
+                                                    {% endif %}
+                                                </td>
+                                                <td>
+                                                    <a href="{{ url_for('proyectos.detalle', proyecto_id=of.proyecto.id) }}" class="text-decoration-none">
+                                                        {{ of.proyecto.nombre }}
+                                                    </a>
+                                                    <br><small class="text-muted">{{ of.proyecto.cliente.nombre }}</small>
+                                                </td>
+                                                <td>
+                                                    {% if of.glosa %}
+                                                    <div class="text-info mb-1"><strong>Glosa:</strong> {{ of.glosa[:40] }}{% if of.glosa|length > 40 %}...{% endif %}</div>
+                                                    {% endif %}
+                                                    {% if of.cantidad_tableros %}
+                                                    <div class="text-success"><strong>Tableros:</strong> {{ of.cantidad_tableros }}</div>
+                                                    {% else %}
+                                                    <small class="text-muted">-</small>
+                                                    {% endif %}
+                                                </td>
+                                                <td>
+                                                    {% if of.area_actual and of.estado_actual %}
+                                                        <div>
+                                                            <span class="badge" style="background-color: {{ of.area_actual.color_hex }}">
+                                                                {{ of.area_actual.nombre }}
+                                                            </span>
+                                                        </div>
+                                                        <small class="text-muted">{{ of.estado_actual.nombre }}</small>
+                                                    {% else %}
+                                                        <span class="badge bg-secondary">Sin estado</span>
+                                                    {% endif %}
+                                                </td>
+                                                <td>
+                                                    {% if of.fecha_entrega_dinamica %}
+                                                        {{ of.fecha_entrega_dinamica.strftime('%d/%m/%Y') }}
+                                                        {% if of.area_actual %}
+                                                        <br><small class="text-muted">
+                                                            {% if of.area_actual.tipo.value == 'fabrica' %}
+                                                            Fábrica
+                                                            {% elif of.area_actual.tipo.value == 'embalaje' %}
+                                                            Embalaje
+                                                            {% else %}
+                                                            Contrato
+                                                            {% endif %}
+                                                        </small>
+                                                        {% endif %}
+                                                    {% else %}
+                                                        -
+                                                    {% endif %}
+                                                </td>
+                                                <td>
+                                                    {% if of.days_remaining_dynamic is not none %}
+                                                        {% if of.days_remaining_dynamic < 0 %}
+                                                            <span class="badge bg-danger">{{ of.days_remaining_dynamic|abs }} días vencido</span>
+                                                        {% elif of.days_remaining_dynamic == 0 %}
+                                                            <span class="badge bg-warning">Hoy</span>
+                                                        {% elif of.days_remaining_dynamic <= 7 %}
+                                                            <span class="badge bg-warning">{{ of.days_remaining_dynamic }} días</span>
+                                                        {% elif of.days_remaining_dynamic <= 30 %}
+                                                            <span class="badge bg-info">{{ of.days_remaining_dynamic }} días</span>
+                                                        {% else %}
+                                                            <span class="badge bg-secondary">{{ of.days_remaining_dynamic }} días</span>
+                                                        {% endif %}
+                                                    {% else %}
+                                                        -
+                                                    {% endif %}
+                                                </td>
+                                                <td>
+                                                    <div class="btn-group btn-group-sm" role="group">
+                                                        <a href="{{ url_for('fabricacion.detalle', of_id=of.id) }}" 
+                                                           class="btn btn-outline-primary" title="Ver detalles">
+                                                            <i data-feather="eye"></i>
+                                                        </a>
+                                                        {% if current_user.rol.value in ['admin', 'general', 'operaciones', 'produccion'] %}
+                                                        <a href="{{ url_for('fabricacion.editar', of_id=of.id) }}" 
+                                                           class="btn btn-outline-secondary" title="Editar">
+                                                            <i data-feather="edit"></i>
+                                                        </a>
+                                                        {% endif %}
 
-                                        {% if of.area_actual and of.area_actual.tipo.value == 'despacho' and of.estado_actual and of.estado_actual.codigo == 'despachado' %}
-                                            {% if current_user.rol.value in ['admin', 'operaciones', 'logistica'] %}
-                                            <button type="button" class="btn btn-outline-warning btn-sm" 
-                                                    title="Archivar orden" 
-                                                    onclick="archivarOrden({{ of.id }}, '{{ of.codigo }}')">
-                                                <i data-feather="archive" class="me-1"></i>
-                                                <span class="d-none d-md-inline">Archivar</span>
-                                            </button>
-                                            {% endif %}
-                                        {% else %}
-                                            {% if current_user.rol.value in ['admin', 'general', 'operaciones', 'produccion'] %}
-                                            <button type="button" class="btn btn-outline-success btn-sm" 
-                                                    title="Avanzar estado/área" 
-                                                    onclick="avanzarEstado({{ of.id }}, '{{ of.codigo }}', '{{ of.next_action_description|default("Avanzar") }}')">
-                                                <i data-feather="arrow-right" class="me-1"></i>
-                                                <span class="d-none d-md-inline">{{ of.next_action_description|default("Avanzar") }}</span>
-                                            </button>
-                                            {% endif %}
-                                        {% endif %}
-                                    </div>
+                                                        {% if of.area_actual and of.area_actual.tipo.value == 'despacho' and of.estado_actual and of.estado_actual.codigo == 'despachado' %}
+                                                            {% if current_user.rol.value in ['admin', 'operaciones', 'logistica'] %}
+                                                            <button type="button" class="btn btn-outline-warning btn-sm" 
+                                                                    title="Archivar orden" 
+                                                                    onclick="archivarOrden({{ of.id }}, '{{ of.codigo }}')">
+                                                                <i data-feather="archive" class="me-1"></i>
+                                                                <span class="d-none d-md-inline">Archivar</span>
+                                                            </button>
+                                                            {% endif %}
+                                                        {% else %}
+                                                            {% if current_user.rol.value in ['admin', 'general', 'operaciones', 'produccion'] %}
+                                                            <button type="button" class="btn btn-outline-success btn-sm" 
+                                                                    title="Avanzar estado/área" 
+                                                                    onclick="avanzarEstado({{ of.id }}, '{{ of.codigo }}', '{{ of.next_action_description|default("Avanzar") }}')">
+                                                                <i data-feather="arrow-right" class="me-1"></i>
+                                                                <span class="d-none d-md-inline">{{ of.next_action_description|default("Avanzar") }}</span>
+                                                            </button>
+                                                            {% endif %}
+                                                        {% endif %}
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                            {% endfor %}
+                                        </tbody>
+                                    </table>
                                 </td>
                             </tr>
-                            {% endfor %}
                             {% endfor %}
                         {% else %}
                             <!-- Flat view -->
@@ -693,7 +707,7 @@
                         <i data-feather="plus-circle" class="text-success" style="width: 48px; height: 48px;"></i>
                     </div>
                     <p class="text-center">Crear orden de fabricación para el despacho <strong id="numeroDespachoModal"></strong></p>
-                    
+
                     <!-- Campo de Glosa Obligatorio -->
                     <div class="mb-3">
                         <label for="glosa_despacho" class="form-label">
@@ -705,7 +719,7 @@
                             Por favor ingrese una glosa para la orden.
                         </div>
                     </div>
-                    
+
                     <div class="alert alert-info">
                         <small>
                             <i data-feather="info" class="me-1"></i>
@@ -860,7 +874,7 @@ function archivarOrden(ofId, codigo) {
 function crearOFParaDespacho(despachoId, numeroDespacho) {
     document.getElementById('numeroDespachoModal').textContent = numeroDespacho;
     document.getElementById('crearOFDespachoForm').action = `/fabricacion/${despachoId}/crear-of-desde-despacho`;
-    
+
     // Clear the glosa field
     document.getElementById('glosa_despacho').value = '';
 
@@ -882,16 +896,16 @@ function updateBulkActionsBar() {
     const bar = document.getElementById('bulk-actions-bar');
     const countElem = document.getElementById('selected-count');
     const textElem = document.getElementById('selected-text');
-    
+
     if (!bar || !countElem || !textElem) {
         console.warn('Bulk actions bar elements not found');
         return;
     }
-    
+
     countElem.textContent = count;
     textElem.textContent = count === 1 ? 'orden seleccionada' : 'órdenes seleccionadas';
     bar.style.display = count > 0 ? 'block' : 'none';
-    
+
     if (typeof feather !== 'undefined') {
         feather.replace();
     }
@@ -913,13 +927,13 @@ function cleanInvisibleSelections() {
     document.querySelectorAll('tr[data-of-id]').forEach(row => {
         visibleIds.add(row.dataset.ofId);
     });
-    
+
     Array.from(selectedOrders).forEach(id => {
         if (!visibleIds.has(id)) {
             selectedOrders.delete(id);
         }
     });
-    
+
     updateBulkActionsBar();
 }
 
@@ -948,47 +962,47 @@ function getSelectedOrdersData() {
 
 async function showBulkChangeEstado() {
     const count = selectedOrders.size;
-    
+
     const modalElem = document.getElementById('bulkChangeEstadoModal');
-    
+
     if (!modalElem) {
         console.error('Bulk change estado modal not found');
         return;
     }
-    
+
     // Show modal first
     const existingModal = bootstrap.Modal.getInstance(modalElem);
     if (existingModal) {
         existingModal.dispose();
     }
     const modal = new bootstrap.Modal(modalElem);
-    
+
     // Wait for modal to be fully shown before accessing elements
     modalElem.addEventListener('shown.bs.modal', async function onModalShown() {
         // Remove event listener to avoid duplicate calls
         modalElem.removeEventListener('shown.bs.modal', onModalShown);
-        
+
         // Query elements within the modal after it's shown
         const countElem = modalElem.querySelector('#bulk-change-count');
         const ordersElem = modalElem.querySelector('#bulk-selected-orders');
         const selectElem = modalElem.querySelector('#bulk-estado-select');
         const notasElem = modalElem.querySelector('#bulk-notas');
-        
+
         if (!countElem || !ordersElem || !selectElem || !notasElem) {
             console.error('Bulk change estado modal elements not found');
             return;
         }
-        
+
         // Reset modal content
         countElem.textContent = count;
         selectElem.innerHTML = '<option value="">Cargando estados...</option>';
         notasElem.value = '';
-        
+
         const ordersHtml = getSelectedOrdersData().map(of => 
             `<div class="badge bg-primary me-1 mb-1">${of.codigo}</div>`
         ).join('');
         ordersElem.innerHTML = ordersHtml;
-        
+
         // Load estados
         try {
             const response = await fetch('/fabricacion/api/estados-disponibles');
@@ -996,11 +1010,11 @@ async function showBulkChangeEstado() {
                 throw new Error(`HTTP error! status: ${response.status}`);
             }
             const estados = await response.json();
-            
+
             if (estados.error) {
                 throw new Error(estados.error);
             }
-            
+
             selectElem.innerHTML = '<option value="">Seleccione un estado...</option>';
             estados.forEach(estado => {
                 const option = document.createElement('option');
@@ -1013,14 +1027,14 @@ async function showBulkChangeEstado() {
             selectElem.innerHTML = '<option value="">Error al cargar estados</option>';
         }
     });
-    
+
     modal.show();
 }
 
 function updateOrderRowState(ofId, estadoInfo) {
     const row = document.querySelector(`tr[data-of-id="${ofId}"]`);
     if (!row) return;
-    
+
     const estadoCell = row.querySelector('td:nth-child(5)');
     if (estadoCell) {
         estadoCell.innerHTML = `
@@ -1041,7 +1055,7 @@ function removeOrderRows(ofIds) {
             row.remove();
         }
     });
-    
+
     const tbody = document.querySelector('table tbody');
     if (tbody && tbody.querySelectorAll('tr').length === 0) {
         const tableContainer = tbody.closest('.table-responsive');
@@ -1063,14 +1077,14 @@ function removeOrderRows(ofIds) {
 async function executeBulkChangeEstado() {
     const estadoId = document.getElementById('bulk-estado-select').value;
     const notas = document.getElementById('bulk-notas').value;
-    
+
     if (!estadoId) {
         alert('Por favor seleccione un estado');
         return;
     }
-    
+
     const ofIds = getSelectedOrders();
-    
+
     try {
         const response = await fetch('/fabricacion/bulk/change-estado', {
             method: 'POST',
@@ -1081,22 +1095,22 @@ async function executeBulkChangeEstado() {
                 notas: notas || null
             })
         });
-        
+
         const result = await response.json();
-        
+
         if (result.success) {
             const successCount = result.results.success_count || 0;
             const errorCount = result.results.error_count || 0;
-            
+
             if (result.results.successes) {
                 result.results.successes.forEach(success => {
                     updateOrderRowState(success.of_id, success.estado_info);
                 });
             }
-            
+
             bootstrap.Modal.getInstance(document.getElementById('bulkChangeEstadoModal')).hide();
             clearSelection();
-            
+
             if (errorCount > 0) {
                 const errorDetails = result.results.errors.map(e => `OF ${e.of_id}: ${e.error}`).join('\n');
                 alert(`Operación completada parcialmente:\n✓ ${successCount} exitosas\n✗ ${errorCount} con errores\n\nErrores:\n${errorDetails}`);
@@ -1114,68 +1128,68 @@ async function executeBulkChangeEstado() {
 
 async function showBulkArchive() {
     const count = selectedOrders.size;
-    
+
     const modalElem = document.getElementById('bulkArchiveModal');
-    
+
     if (!modalElem) {
         console.error('Bulk archive modal not found');
         return;
     }
-    
+
     // Dispose existing modal instance if any
     const existingModal = bootstrap.Modal.getInstance(modalElem);
     if (existingModal) {
         existingModal.dispose();
     }
-    
+
     const modal = new bootstrap.Modal(modalElem);
-    
+
     // Wait for modal to be fully shown before accessing elements
     modalElem.addEventListener('shown.bs.modal', function onModalShown() {
         modalElem.removeEventListener('shown.bs.modal', onModalShown);
-        
+
         const countElem = modalElem.querySelector('#bulk-archive-count');
         const ordersElem = modalElem.querySelector('#bulk-archive-orders');
-        
+
         if (!countElem || !ordersElem) {
             console.error('Bulk archive modal elements not found');
             return;
         }
-        
+
         countElem.textContent = count;
-        
+
         const ordersHtml = getSelectedOrdersData().map(of => 
             `<div class="badge bg-warning me-1 mb-1">${of.codigo}</div>`
         ).join('');
         ordersElem.innerHTML = ordersHtml;
     });
-    
+
     modal.show();
 }
 
 async function executeBulkArchive() {
     const ofIds = getSelectedOrders();
-    
+
     try {
         const response = await fetch('/fabricacion/bulk/archive', {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
             body: JSON.stringify({of_ids: ofIds})
         });
-        
+
         const result = await response.json();
-        
+
         if (result.success) {
             const successCount = result.results.success_count || 0;
             const errorCount = result.results.error_count || 0;
-            
+
             if (result.results.processed_ids) {
                 removeOrderRows(result.results.processed_ids);
             }
-            
+
             bootstrap.Modal.getInstance(document.getElementById('bulkArchiveModal')).hide();
             clearSelection();
-            
+
             if (errorCount > 0) {
                 const errorDetails = result.results.errors.map(e => `OF ${e.of_id}: ${e.error}`).join('\n');
                 alert(`Operación completada parcialmente:\n✓ ${successCount} archivadas\n✗ ${errorCount} con errores\n\nErrores:\n${errorDetails}`);
@@ -1193,51 +1207,51 @@ async function executeBulkArchive() {
 
 async function showBulkDelete() {
     const count = selectedOrders.size;
-    
+
     const modalElem = document.getElementById('bulkDeleteModal');
-    
+
     if (!modalElem) {
         console.error('Bulk delete modal not found');
         return;
     }
-    
+
     // Dispose existing modal instance if any
     const existingModal = bootstrap.Modal.getInstance(modalElem);
     if (existingModal) {
         existingModal.dispose();
     }
-    
+
     const modal = new bootstrap.Modal(modalElem);
-    
+
     // Wait for modal to be fully shown before accessing elements
     modalElem.addEventListener('shown.bs.modal', function onModalShown() {
         modalElem.removeEventListener('shown.bs.modal', onModalShown);
-        
+
         const countElem = modalElem.querySelector('#bulk-delete-count');
         const ordersElem = modalElem.querySelector('#bulk-delete-orders');
         const confirmElem = modalElem.querySelector('#bulk-delete-confirmation');
         const btnElem = modalElem.querySelector('#bulk-delete-btn');
-        
+
         if (!countElem || !ordersElem || !confirmElem || !btnElem) {
             console.error('Bulk delete modal elements not found');
             return;
         }
-        
+
         countElem.textContent = count;
-        
+
         const ordersHtml = getSelectedOrdersData().map(of => 
             `<div class="badge bg-danger me-1 mb-1">${of.codigo}</div>`
         ).join('');
         ordersElem.innerHTML = ordersHtml;
-        
+
         confirmElem.value = '';
         btnElem.disabled = true;
-        
+
         confirmElem.addEventListener('input', function checkConfirmation() {
             btnElem.disabled = confirmElem.value.trim().toUpperCase() !== 'ELIMINAR';
         });
     });
-    
+
     modal.show();
 }
 
@@ -1247,29 +1261,29 @@ async function executeBulkDelete() {
         alert('Debe escribir ELIMINAR para confirmar');
         return;
     }
-    
+
     const ofIds = getSelectedOrders();
-    
+
     try {
         const response = await fetch('/fabricacion/bulk/delete', {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
             body: JSON.stringify({of_ids: ofIds})
         });
-        
+
         const result = await response.json();
-        
+
         if (result.success) {
             const successCount = result.results.success_count || 0;
             const errorCount = result.results.error_count || 0;
-            
+
             if (result.results.processed_ids) {
                 removeOrderRows(result.results.processed_ids);
             }
-            
+
             bootstrap.Modal.getInstance(document.getElementById('bulkDeleteModal')).hide();
             clearSelection();
-            
+
             if (errorCount > 0) {
                 const errorDetails = result.results.errors.map(e => `OF ${e.of_id}: ${e.error}`).join('\n');
                 alert(`Operación completada parcialmente:\n✓ ${successCount} eliminadas\n✗ ${errorCount} con errores\n\nErrores:\n${errorDetails}`);
@@ -1288,10 +1302,10 @@ async function executeBulkDelete() {
 function updateProjectCheckboxState(proyectoId) {
     const projectCheckbox = document.querySelector(`.project-checkbox[data-proyecto-id="${proyectoId}"]`);
     if (!projectCheckbox) return;
-    
+
     const projectOrders = document.querySelectorAll(`.order-checkbox[data-proyecto-id="${proyectoId}"]`);
     const checkedCount = Array.from(projectOrders).filter(cb => cb.checked).length;
-    
+
     if (checkedCount === 0) {
         projectCheckbox.checked = false;
         projectCheckbox.indeterminate = false;
@@ -1303,6 +1317,115 @@ function updateProjectCheckboxState(proyectoId) {
         projectCheckbox.indeterminate = true;
     }
 }
+
+// Project expand/collapse functionality
+    function expandAllProjects() {
+        const collapseElements = document.querySelectorAll('[id^="project-ofs-"]');
+        collapseElements.forEach(element => {
+            if (!element.classList.contains('show')) {
+                const collapse = new bootstrap.Collapse(element, {show: true});
+            }
+            // Update icon
+            const projectId = element.id.replace('project-ofs-', '');
+            const icon = document.getElementById(`toggle-icon-${projectId}`);
+            if (icon) {
+                icon.setAttribute('data-feather', 'chevron-down');
+            }
+        });
+
+        // Refresh feather icons
+        if (typeof feather !== 'undefined') {
+            feather.replace();
+        }
+    }
+
+    function collapseAllProjects() {
+        const collapseElements = document.querySelectorAll('[id^="project-ofs-"]');
+        collapseElements.forEach(element => {
+            if (element.classList.contains('show')) {
+                const collapse = new bootstrap.Collapse(element, {hide: true});
+            }
+            // Update icon
+            const projectId = element.id.replace('project-ofs-', '');
+            const icon = document.getElementById(`toggle-icon-${projectId}`);
+            if (icon) {
+                icon.setAttribute('data-feather', 'chevron-right');
+            }
+        });
+
+        // Refresh feather icons
+        if (typeof feather !== 'undefined') {
+            feather.replace();
+        }
+    }
+
+    // Initialize project toggle functionality
+    function initializeProjectToggle() {
+        // Handle individual project toggle buttons
+        document.querySelectorAll('.project-toggle-btn').forEach(button => {
+            button.addEventListener('click', function(e) {
+                e.preventDefault();
+                const targetId = this.getAttribute('data-bs-target');
+                const target = document.querySelector(targetId);
+                const projectId = targetId.replace('#project-ofs-', '');
+                const icon = document.getElementById(`toggle-icon-${projectId}`);
+
+                if (target && icon) {
+                    const isExpanded = target.classList.contains('show');
+
+                    if (isExpanded) {
+                        // Currently expanded, so collapse
+                        const collapse = new bootstrap.Collapse(target, {hide: true});
+                        icon.setAttribute('data-feather', 'chevron-right');
+                        this.setAttribute('aria-expanded', 'false');
+                    } else {
+                        // Currently collapsed, so expand
+                        const collapse = new bootstrap.Collapse(target, {show: true});
+                        icon.setAttribute('data-feather', 'chevron-down');
+                        this.setAttribute('aria-expanded', 'true');
+                    }
+
+                    // Refresh feather icons
+                    if (typeof feather !== 'undefined') {
+                        feather.replace();
+                    }
+                }
+            });
+        });
+
+        // Handle Bootstrap collapse events to update icons
+        document.querySelectorAll('[id^="project-ofs-"]').forEach(element => {
+            element.addEventListener('shown.bs.collapse', function() {
+                const projectId = this.id.replace('project-ofs-', '');
+                const icon = document.getElementById(`toggle-icon-${projectId}`);
+                const button = document.querySelector(`[data-bs-target="#${this.id}"]`);
+                if (icon) {
+                    icon.setAttribute('data-feather', 'chevron-down');
+                }
+                if (button) {
+                    button.setAttribute('aria-expanded', 'true');
+                }
+                if (typeof feather !== 'undefined') {
+                    feather.replace();
+                }
+            });
+
+            element.addEventListener('hidden.bs.collapse', function() {
+                const projectId = this.id.replace('project-ofs-', '');
+                const icon = document.getElementById(`toggle-icon-${projectId}`);
+                const button = document.querySelector(`[data-bs-target="#${this.id}"]`);
+                if (icon) {
+                    icon.setAttribute('data-feather', 'chevron-right');
+                }
+                if (button) {
+                    button.setAttribute('aria-expanded', 'false');
+                }
+                if (typeof feather !== 'undefined') {
+                    feather.replace();
+                }
+            });
+        });
+    }
 
 // Initialize on page load if there's a selected proyecto
 document.addEventListener('DOMContentLoaded', function() {
@@ -1328,82 +1451,8 @@ document.addEventListener('DOMContentLoaded', function() {
     // Clean selections from previous pages/filters
     cleanInvisibleSelections();
 
-    // === Bulk Actions Handlers ===
-    const selectAllCheckbox = document.getElementById('select-all-orders');
-    if (selectAllCheckbox) {
-        selectAllCheckbox.addEventListener('change', function() {
-            const checkboxes = document.querySelectorAll('.order-checkbox');
-            checkboxes.forEach(cb => {
-                cb.checked = this.checked;
-                const ofId = cb.value;
-                if (this.checked) {
-                    selectedOrders.add(ofId);
-                } else {
-                    selectedOrders.delete(ofId);
-                }
-            });
-            updateBulkActionsBar();
-        });
-    }
-    
-    document.querySelectorAll('.order-checkbox').forEach(checkbox => {
-        checkbox.addEventListener('change', function() {
-            const ofId = this.value;
-            if (this.checked) {
-                selectedOrders.add(ofId);
-            } else {
-                selectedOrders.delete(ofId);
-                if (selectAllCheckbox) {
-                    selectAllCheckbox.checked = false;
-                }
-            }
-            updateBulkActionsBar();
-            
-            // Update project checkbox state if in grouped view
-            const proyectoId = this.dataset.proyectoId;
-            if (proyectoId) {
-                updateProjectCheckboxState(proyectoId);
-            }
-        });
-    });
-    
-    // Project checkbox handlers (for grouped view)
-    document.querySelectorAll('.project-checkbox').forEach(checkbox => {
-        checkbox.addEventListener('change', function() {
-            const proyectoId = this.dataset.proyectoId;
-            const projectOrders = document.querySelectorAll(`.order-checkbox[data-proyecto-id="${proyectoId}"]`);
-            
-            projectOrders.forEach(cb => {
-                cb.checked = this.checked;
-                const ofId = cb.value;
-                if (this.checked) {
-                    selectedOrders.add(ofId);
-                } else {
-                    selectedOrders.delete(ofId);
-                }
-            });
-            
-            // Update select-all checkbox state
-            const selectAllCheckbox = document.getElementById('select-all-orders');
-            if (selectAllCheckbox && !this.checked) {
-                selectAllCheckbox.checked = false;
-            }
-            
-            updateBulkActionsBar();
-        });
-        
-        // Initialize project checkbox state on page load
-        const proyectoId = checkbox.dataset.proyectoId;
-        updateProjectCheckboxState(proyectoId);
-    });
-    
-    const deleteConfirmation = document.getElementById('bulk-delete-confirmation');
-    if (deleteConfirmation) {
-        deleteConfirmation.addEventListener('input', function() {
-            const btn = document.getElementById('bulk-delete-btn');
-            btn.disabled = this.value !== 'ELIMINAR';
-        });
-    }
+    // Initialize project toggle functionality
+    initializeProjectToggle();
 
     // Register event listeners for bulk action buttons
     const btnBulkChangeEstado = document.getElementById('btn-bulk-change-estado');
@@ -1430,7 +1479,7 @@ document.addEventListener('DOMContentLoaded', function() {
     try {
         // Add any element-specific initialization here with null checks
         console.log('Fabricación index page initialized with bulk actions');
-        
+
         // Verify modal elements exist
         const modalCheck = {
             bulkChangeEstadoModal: !!document.getElementById('bulkChangeEstadoModal'),
@@ -1442,6 +1491,84 @@ document.addEventListener('DOMContentLoaded', function() {
     } catch (error) {
         console.warn('Error in fabricación page initialization:', error);
     }
+
+    // === Bulk Actions Handlers ===
+    const selectAllCheckbox = document.getElementById('select-all-orders');
+    if (selectAllCheckbox) {
+        selectAllCheckbox.addEventListener('change', function() {
+            const checkboxes = document.querySelectorAll('.order-checkbox');
+            checkboxes.forEach(cb => {
+                cb.checked = this.checked;
+                const ofId = cb.value;
+                if (this.checked) {
+                    selectedOrders.add(ofId);
+                } else {
+                    selectedOrders.delete(ofId);
+                }
+            });
+            updateBulkActionsBar();
+        });
+    }
+
+    document.querySelectorAll('.order-checkbox').forEach(checkbox => {
+        checkbox.addEventListener('change', function() {
+            const ofId = this.value;
+            if (this.checked) {
+                selectedOrders.add(ofId);
+            } else {
+                selectedOrders.delete(ofId);
+                if (selectAllCheckbox) {
+                    selectAllCheckbox.checked = false;
+                }
+            }
+            updateBulkActionsBar();
+
+            // Update project checkbox state if in grouped view
+            const proyectoId = this.dataset.proyectoId;
+            if (proyectoId) {
+                updateProjectCheckboxState(proyectoId);
+            }
+        });
+    });
+
+    // Project checkbox handlers (for grouped view)
+    document.querySelectorAll('.project-checkbox').forEach(checkbox => {
+        checkbox.addEventListener('change', function() {
+            const proyectoId = this.dataset.proyectoId;
+            const projectOrders = document.querySelectorAll(`.order-checkbox[data-proyecto-id="${proyectoId}"]`);
+
+            projectOrders.forEach(cb => {
+                cb.checked = this.checked;
+                const ofId = cb.value;
+                if (this.checked) {
+                    selectedOrders.add(ofId);
+                } else {
+                    selectedOrders.delete(ofId);
+                }
+            });
+
+            // Update select-all checkbox state
+            const selectAllCheckbox = document.getElementById('select-all-orders');
+            if (selectAllCheckbox && !this.checked) {
+                selectAllCheckbox.checked = false;
+            }
+
+            updateBulkActionsBar();
+        });
+
+        // Initialize project checkbox state on page load
+        const proyectoId = checkbox.dataset.proyectoId;
+        updateProjectCheckboxState(proyectoId);
+    });
+
+    const deleteConfirmation = document.getElementById('bulk-delete-confirmation');
+    if (deleteConfirmation) {
+        deleteConfirmation.addEventListener('input', function() {
+            const btn = document.getElementById('bulk-delete-btn');
+            btn.disabled = this.value !== 'ELIMINAR';
+        });
+    }
+});
 });
 </script>
 {% endblock %}
