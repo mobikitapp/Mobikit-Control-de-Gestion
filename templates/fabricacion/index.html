@@ -1113,37 +1113,39 @@ async function executeBulkChangeEstado() {
 
 async function showBulkArchive() {
     const count = selectedOrders.size;
+    console.log('DEBUG: showBulkArchive - count:', count);
 
     const modalElem = document.getElementById('bulkArchiveModal');
 
     if (!modalElem) {
-        console.error('Bulk archive modal not found');
+        console.error('Bulk archive modal element not found');
+        alert('Error: Modal de archivado no encontrado');
         return;
     }
 
-    // Get elements directly by ID
+    // Update count - this element MUST exist
     const countElem = document.getElementById('bulk-archive-count');
+    if (countElem) {
+        countElem.textContent = count;
+        console.log('DEBUG: Updated count element');
+    } else {
+        console.error('bulk-archive-count element not found');
+    }
+
+    // Update orders list if element exists (optional)
     const ordersElem = document.getElementById('bulk-archive-orders');
-
-    if (!countElem || !ordersElem) {
-        console.error('Bulk archive modal elements not found');
-        return;
+    if (ordersElem) {
+        const ordersHtml = getSelectedOrdersData().map(of => 
+            `<div class="badge bg-warning me-1 mb-1">${of.codigo}</div>`
+        ).join('');
+        ordersElem.innerHTML = ordersHtml;
+        console.log('DEBUG: Updated orders element');
+    } else {
+        console.warn('bulk-archive-orders element not found - continuing anyway');
     }
 
-    // Update content
-    countElem.textContent = count;
-
-    const ordersHtml = getSelectedOrdersData().map(of => 
-        `<div class="badge bg-warning me-1 mb-1">${of.codigo}</div>`
-    ).join('');
-    ordersElem.innerHTML = ordersHtml;
-
-    // Dispose existing modal instance if any
-    const existingModal = bootstrap.Modal.getInstance(modalElem);
-    if (existingModal) {
-        existingModal.dispose();
-    }
-
+    // Show modal
+    console.log('DEBUG: Showing modal');
     const modal = new bootstrap.Modal(modalElem);
     modal.show();
 }
