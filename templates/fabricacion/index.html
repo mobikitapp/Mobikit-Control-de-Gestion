@@ -1150,21 +1150,28 @@ async function showBulkArchive() {
 
 async function executeBulkArchive() {
     const ofIds = getSelectedOrders();
+    console.log('DEBUG: Iniciando archivado de órdenes:', ofIds);
 
     try {
+        console.log('DEBUG: Enviando request a /fabricacion/bulk/archive con IDs:', ofIds);
         const response = await fetch('/fabricacion/bulk/archive', {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
             body: JSON.stringify({of_ids: ofIds})
         });
 
+        console.log('DEBUG: Response status:', response.status);
         const result = await response.json();
+        console.log('DEBUG: Response JSON:', result);
 
         if (result.success) {
             const successCount = result.results.success_count || 0;
             const errorCount = result.results.error_count || 0;
 
+            console.log('DEBUG: Archivado completado. Éxitos:', successCount, 'Errores:', errorCount);
+
             if (result.results.processed_ids) {
+                console.log('DEBUG: Removiendo filas de órdenes archivadas:', result.results.processed_ids);
                 removeOrderRows(result.results.processed_ids);
             }
 
@@ -1186,11 +1193,12 @@ async function executeBulkArchive() {
                 alert(`✓ ${successCount} orden${successCount > 1 ? 'es' : ''} archivada${successCount > 1 ? 's' : ''} correctamente`);
             }
         } else {
+            console.error('DEBUG: Error en respuesta:', result.error);
             alert('Error: ' + result.error);
         }
     } catch (error) {
-        console.error('Error:', error);
-        alert('Error al archivar');
+        console.error('DEBUG: Error en catch:', error);
+        alert('Error al archivar: ' + error.message);
     }
 }
 

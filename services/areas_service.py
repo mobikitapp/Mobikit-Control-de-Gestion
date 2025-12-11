@@ -294,13 +294,15 @@ class AreasService:
             if not current_progress:
                 raise ValueError(f"Orden {orden_fabricacion_id} no encontrada")
 
+            logger.info(f"DEBUG archive_dispatch - Orden {orden_fabricacion_id}: area={current_progress.area.tipo if current_progress.area else 'None'}, estado={current_progress.estado.codigo if current_progress.estado else 'None'}")
+
             # Verify it's in dispatch area OR bodega area with dispatched state
             is_in_despacho = current_progress.area.tipo == TipoArea.DESPACHO
             is_in_bodega_despachado = (current_progress.area.tipo == TipoArea.BODEGA and 
                                        current_progress.estado.codigo == EstadoBodega.DESPACHADO.value)
             
             if not (is_in_despacho or is_in_bodega_despachado):
-                raise ValueError("Solo se pueden archivar órdenes despachadas (en Despacho o en Bodega con estado Despachado)")
+                raise ValueError(f"Solo se pueden archivar órdenes despachadas. Actual: área={current_progress.area.tipo if current_progress.area else 'None'}, estado={current_progress.estado.codigo if current_progress.estado else 'None'}")
 
             # Archive the progress record
             datos_anteriores = serialize_model(current_progress)
@@ -316,12 +318,12 @@ class AreasService:
                 datos_nuevos=serialize_model(archived_progress)
             )
 
-            logger.info(f"Orden {orden_fabricacion_id} archivada")
+            logger.info(f"Orden {orden_fabricacion_id} archivada exitosamente")
             return True
 
         except Exception as e:
             db.session.rollback()
-            logger.error(f"Error archivando orden: {str(e)}")
+            logger.error(f"Error archivando orden {orden_fabricacion_id}: {str(e)}")
             raise
 
     def add_nuevo_estado_bodega(self) -> bool:
