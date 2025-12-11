@@ -1121,6 +1121,23 @@ async function showBulkArchive() {
         return;
     }
 
+    // Get elements directly by ID
+    const countElem = document.getElementById('bulk-archive-count');
+    const ordersElem = document.getElementById('bulk-archive-orders');
+
+    if (!countElem || !ordersElem) {
+        console.error('Bulk archive modal elements not found');
+        return;
+    }
+
+    // Update content
+    countElem.textContent = count;
+
+    const ordersHtml = getSelectedOrdersData().map(of => 
+        `<div class="badge bg-warning me-1 mb-1">${of.codigo}</div>`
+    ).join('');
+    ordersElem.innerHTML = ordersHtml;
+
     // Dispose existing modal instance if any
     const existingModal = bootstrap.Modal.getInstance(modalElem);
     if (existingModal) {
@@ -1128,27 +1145,6 @@ async function showBulkArchive() {
     }
 
     const modal = new bootstrap.Modal(modalElem);
-
-    // Wait for modal to be fully shown before accessing elements
-    modalElem.addEventListener('shown.bs.modal', function onModalShown() {
-        modalElem.removeEventListener('shown.bs.modal', onModalShown);
-
-        const countElem = modalElem.querySelector('#bulk-archive-count');
-        const ordersElem = modalElem.querySelector('#bulk-archive-orders');
-
-        if (!countElem || !ordersElem) {
-            console.error('Bulk archive modal elements not found');
-            return;
-        }
-
-        countElem.textContent = count;
-
-        const ordersHtml = getSelectedOrdersData().map(of => 
-            `<div class="badge bg-warning me-1 mb-1">${of.codigo}</div>`
-        ).join('');
-        ordersElem.innerHTML = ordersHtml;
-    });
-
     modal.show();
 }
 
