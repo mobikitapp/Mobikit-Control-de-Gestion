@@ -676,7 +676,7 @@ def bulk_change_estado():
         return jsonify({'error': str(e)}), 500
 
 @fabricacion_bp.route('/bulk/archive', methods=['POST'])
-@require_role(RolUsuario.ADMIN, RolUsuario.OPERACIONES, RolUsuario.LOGISTICA)
+@require_role(RolUsuario.ADMIN, RolUsuario.GENERAL, RolUsuario.OPERACIONES, RolUsuario.LOGISTICA)
 def bulk_archive():
     """Archivar múltiples órdenes de fabricación"""
     try:

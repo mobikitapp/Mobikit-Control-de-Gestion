@@ -570,7 +570,7 @@
                         Cambiar Estado
                     </button>
                     {% endif %}
-                    {% if current_user.rol.value in ['admin', 'operaciones', 'logistica'] %}
+                    {% if current_user.rol.value in ['admin', 'general', 'operaciones', 'logistica'] %}
                     <button type="button" id="btn-bulk-archive" class="btn btn-sm btn-warning">
                         <i data-feather="archive" class="me-1"></i>
                         Archivar
