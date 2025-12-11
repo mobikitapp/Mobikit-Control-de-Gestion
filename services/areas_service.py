@@ -287,15 +287,20 @@ class AreasService:
     def archive_dispatch(self, orden_fabricacion_id: int) -> bool:
         """
         Archive a dispatched order (remove from active lists)
+        Allows archiving from Despacho area or Bodega area when dispatched
         """
         try:
             current_progress = self.progreso_repo.get_current_progress(orden_fabricacion_id)
             if not current_progress:
                 raise ValueError(f"Orden {orden_fabricacion_id} no encontrada")
 
-            # Verify it's in dispatch area with dispatched state
-            if current_progress.area.tipo != TipoArea.DESPACHO:
-                raise ValueError("Solo se pueden archivar órdenes en el área de Despacho")
+            # Verify it's in dispatch area OR bodega area with dispatched state
+            is_in_despacho = current_progress.area.tipo == TipoArea.DESPACHO
+            is_in_bodega_despachado = (current_progress.area.tipo == TipoArea.BODEGA and 
+                                       current_progress.estado.codigo == EstadoBodega.DESPACHADO.value)
+            
+            if not (is_in_despacho or is_in_bodega_despachado):
+                raise ValueError("Solo se pueden archivar órdenes despachadas (en Despacho o en Bodega con estado Despachado)")
 
             # Archive the progress record
             datos_anteriores = serialize_model(current_progress)
@@ -311,12 +316,12 @@ class AreasService:
                 datos_nuevos=serialize_model(archived_progress)
             )
 
-            logger.info(f"Orden {orden_fabricacion_id} archivada en despachos")
+            logger.info(f"Orden {orden_fabricacion_id} archivada")
             return True
 
         except Exception as e:
             db.session.rollback()
-            logger.error(f"Error archivando despacho: {str(e)}")
+            logger.error(f"Error archivando orden: {str(e)}")
             raise
 
     def add_nuevo_estado_bodega(self) -> bool:
