@@ -1168,7 +1168,15 @@ async function executeBulkArchive() {
                 removeOrderRows(result.results.processed_ids);
             }
 
-            bootstrap.Modal.getInstance(document.getElementById('bulkArchiveModal')).hide();
+            // Close modal safely
+            const modalElem = document.getElementById('bulkArchiveModal');
+            if (modalElem) {
+                const modalInstance = bootstrap.Modal.getInstance(modalElem);
+                if (modalInstance) {
+                    modalInstance.hide();
+                }
+            }
+            
             clearSelection();
 
             if (errorCount > 0) {

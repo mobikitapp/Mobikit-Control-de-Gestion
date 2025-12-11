@@ -143,6 +143,15 @@ def create_app():
             logger.error(f"Error in check_user_role: {str(e)}", exc_info=True)
             return render_template("500.html"), 500
 
+    @app.after_request
+    def set_no_cache(response):
+        """Disable caching for all HTML templates to ensure latest changes are visible"""
+        if response.content_type and 'text/html' in response.content_type:
+            response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate, public, max-age=0'
+            response.headers['Pragma'] = 'no-cache'
+            response.headers['Expires'] = '0'
+        return response
+
     return app
 
 # Create the app instance
